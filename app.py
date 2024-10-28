@@ -103,9 +103,10 @@ def predict():
     # Create the path to the image
     image_path = os.path.join(FRONTEND_IMAGES_DIR, image_name)
 
+    print('--- image path :', image_path)
     # Make prediction
     prediction = predict_segmentation(image_path)
-    
+
     # Transform the image to send to frontend api
     mask_image = Image.fromarray(prediction.astype(np.uint8))
     # Save the mask image to a BytesIO object
@@ -114,7 +115,7 @@ def predict():
     img_io.seek(0)
     
     img_base64 = base64.b64encode(img_io.getvalue()).decode('utf-8')
-
+    print('--- img_base64 :', img_base64)
     # Return a response
     return jsonify({
         'message': 'Prediction completed successfully',
