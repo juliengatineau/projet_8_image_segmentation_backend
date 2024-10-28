@@ -1,30 +1,31 @@
-import mimetypes
+from flask import Flask, request, jsonify
 import os
-import io
-import requests
+from PIL import Image
+import numpy as np
+from matplotlib import colors
 
-# Désactiver les optimisations oneDNN
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-# Désactiver les GPU
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 # Set the environment variable to use the TensorFlow 2.0 backend
 os.environ["SM_FRAMEWORK"] = "tf.keras"
 
 import segmentation_models as sm
 sm.set_framework('tf.keras')
-from segmentation_models import FPN
-
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 from segmentation_models.losses import categorical_crossentropy
 
-from flask import Flask, request, jsonify, send_file
-from PIL import Image
 
-import numpy as np
-from matplotlib import colors
-import dill
+# --------------------------------------------------------------------
+# VARIABLES
+# --------------------------------------------------------------------
 
+# Get the absolute path of the directory containing app.py
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_API_URL = 'https://projet8frontend-ejangbejgzeuapcv.westeurope-01.azurewebsites.net'
+FRONTEND_IMAGES_DIR = os.path.join(FRONTEND_API_URL, 'static/images/source')
+
+# Create the 'generated' directory if it doesn't exist
+GENERATED_DIR = os.path.join(BASE_DIR, 'generated')
+os.makedirs(GENERATED_DIR, exist_ok=True)
 
 # Path to the Keras model
 model_path = "./model/model.keras"
@@ -36,12 +37,10 @@ MODEL = load_model(model_path, custom_objects={'CategoricalCELoss':categorical_c
 MODEL_INPUT_WIDTH = 256
 MODEL_INPUT_HEIGHT = 128
 
-# Get the absolute path of the directory containing app.py
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Create the 'generated' directory if it doesn't exist
-GENERATED_DIR = os.path.join(BASE_DIR, 'generated')
-os.makedirs(GENERATED_DIR, exist_ok=True)
+# --------------------------------------------------------------------
+# FUNCTIONS
+# --------------------------------------------------------------------
 
 def generate_img_from_mask(mask, colors_palette=['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']):
     # Generate a color image array from a segmented mask
@@ -90,37 +89,33 @@ def predict_segmentation(image_path):
 
     return mask_color
 
+
+# --------------------------------------------------------------------
+# APP
+# --------------------------------------------------------------------
+
 app = Flask(__name__)
-
-
-
-
-
-
-
 @app.route('/predict', methods=['POST'])
 def predict():
-      data = request.get_json()
-      image_url = data.get('image_url')
-      predicted_mask_filename = data.get('predicted_mask_filename')
+    data = request.get_json()
+    predicted_mask_filename = data.get('predicted_mask_filename')
+    image_name = data.get('image_name')
 
-      #### Replace the url in local mode #### Remove line when on azure server
-      image_path = image_url.replace('http://localhost:8000/', '../frontend/static/')
+    # Create the path to the image
+    image_path = os.path.join(FRONTEND_IMAGES_DIR, image_name)
 
+    # Make prediction
+    prediction = predict_segmentation(image_path)
 
-      prediction = predict_segmentation(image_path)
-
-
-      # Create the path to save the predicted mask
-      predicted_mask_path = os.path.join(GENERATED_DIR, predicted_mask_filename)
-      prediction_mask = Image.fromarray(prediction.astype(np.uint8))
-      prediction_mask.save(predicted_mask_path)
-      
-      # Envoyer les informations à une autre route
-      return jsonify({
-          'message': 'Prediction completed successfully',
-          'predicted_mask_path': predicted_mask_path
-      }), 200
+    # Create the path to save the predicted mask
+    predicted_mask_path = os.path.join(GENERATED_DIR, predicted_mask_filename)
+    prediction_mask = Image.fromarray(prediction.astype(np.uint8))
+    prediction_mask.save(predicted_mask_path)
+    
+    # Return a response
+    return jsonify({
+        'message': 'Prediction completed successfully',
+    }), 200
         
 
 if __name__ == '__main__':
