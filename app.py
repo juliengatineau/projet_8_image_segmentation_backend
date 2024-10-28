@@ -3,6 +3,8 @@ import os
 from PIL import Image
 import numpy as np
 from matplotlib import colors
+from io import BytesIO
+import base64
 
 # Set the environment variable to use the TensorFlow 2.0 backend
 os.environ["SM_FRAMEWORK"] = "tf.keras"
@@ -23,9 +25,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_API_URL = 'https://projet8frontend-ejangbejgzeuapcv.westeurope-01.azurewebsites.net'
 FRONTEND_IMAGES_DIR = os.path.join(FRONTEND_API_URL, 'static/images/source')
 
-# Create the 'generated' directory if it doesn't exist
-GENERATED_DIR = os.path.join(BASE_DIR, 'generated')
-os.makedirs(GENERATED_DIR, exist_ok=True)
 
 # Path to the Keras model
 model_path = "./model/model.keras"
@@ -106,15 +105,20 @@ def predict():
 
     # Make prediction
     prediction = predict_segmentation(image_path)
-
-    # Create the path to save the predicted mask
-    predicted_mask_path = os.path.join(GENERATED_DIR, predicted_mask_filename)
-    prediction_mask = Image.fromarray(prediction.astype(np.uint8))
-    prediction_mask.save(predicted_mask_path)
     
+    # Transform the image to send to frontend api
+    mask_image = Image.fromarray(prediction.astype(np.uint8))
+    # Save the mask image to a BytesIO object
+    img_io = BytesIO()
+    mask_image.save(img_io, 'PNG')
+    img_io.seek(0)
+    
+    img_base64 = base64.b64encode(img_io.getvalue()).decode('utf-8')
+
     # Return a response
     return jsonify({
         'message': 'Prediction completed successfully',
+        'predicted_mask': img_base64
     }), 200
         
 
