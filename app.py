@@ -3,8 +3,6 @@ import os
 from PIL import Image
 import numpy as np
 from matplotlib import colors
-from io import BytesIO
-import base64
 import requests
 
 # Set the environment variable to use the TensorFlow 2.0 backend
@@ -116,19 +114,16 @@ def predict():
     # Make prediction
     prediction = predict_segmentation(image)
 
-    # Transform the image to send to frontend api
-    mask_image = Image.fromarray(prediction.astype(np.uint8))
-    # Save the mask image to a BytesIO object
-    img_io = BytesIO()
-    mask_image.save(img_io, 'PNG')
-    img_io.seek(0)
+    # Define the output path for the mask
+    output_path = os.path.join(BASE_DIR, 'pred', predicted_mask_filename)
     
-    img_base64 = base64.b64encode(img_io.getvalue()).decode('utf-8')
-    print('--- img_base64 :', img_base64)
+    # Save the image
+    prediction.save(output_path)
+    print(f'--- Mask saved at {output_path}')
+    
     # Return a response
     return jsonify({
         'message': 'Prediction completed successfully',
-        'predicted_mask': img_base64
     }), 200
         
 
