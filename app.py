@@ -96,6 +96,7 @@ def predict_segmentation(image_path):
 app = Flask(__name__)
 @app.route('/predict', methods=['POST'])
 def predict():
+    print('--- request :', request)
     data = request.get_json()
     predicted_mask_filename = data.get('predicted_mask_filename')
     image_name = data.get('image_name')
