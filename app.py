@@ -5,6 +5,7 @@ import numpy as np
 from matplotlib import colors
 from io import BytesIO
 import base64
+import requests
 
 # Set the environment variable to use the TensorFlow 2.0 backend
 os.environ["SM_FRAMEWORK"] = "tf.keras"
@@ -66,11 +67,11 @@ def generate_img_from_mask(mask, colors_palette=['b', 'g', 'r', 'c', 'm', 'y', '
 
     return img_seg
 
-def predict_segmentation(image_path):
+def predict_segmentation(image):
     # Load and resize the image
-    image = Image.open(image_path)
-    image = image.resize((MODEL_INPUT_WIDTH, MODEL_INPUT_HEIGHT))
 
+    image = image.resize((MODEL_INPUT_WIDTH, MODEL_INPUT_HEIGHT))
+    print('--- image resized')
     # Convert the image to a numpy array
     image_array = np.array(image)
 
@@ -106,8 +107,14 @@ def predict():
     image_path = os.path.join(FRONTEND_IMAGES_DIR, image_name)
 
     print('--- image path :', image_path)
+
+    # Download the image from the URL
+    response = requests.get(image_path)
+    image = Image.open(BytesIO(response.content))
+    print('--- image OK')
+
     # Make prediction
-    prediction = predict_segmentation(image_path)
+    prediction = predict_segmentation(image)
 
     # Transform the image to send to frontend api
     mask_image = Image.fromarray(prediction.astype(np.uint8))
