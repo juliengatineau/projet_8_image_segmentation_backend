@@ -3,6 +3,7 @@ import os
 from PIL import Image
 import numpy as np
 from matplotlib import colors
+from io import BytesIO
 import requests
 
 # Set the environment variable to use the TensorFlow 2.0 backend
