@@ -100,7 +100,8 @@ def predict():
     data = request.get_json()
     predicted_mask_filename = data.get('predicted_mask_filename')
     image_name = data.get('image_name')
-
+    print('--- image_name :', image_name)
+    
     # Create the path to the image
     image_path = os.path.join(FRONTEND_IMAGES_DIR, image_name)
 
