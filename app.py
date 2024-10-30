@@ -1,10 +1,9 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, send_file
 import os
 from PIL import Image
 import numpy as np
 from matplotlib import colors
 from io import BytesIO
-import requests
 
 # Set the environment variable to use the TensorFlow 2.0 backend
 os.environ["SM_FRAMEWORK"] = "tf.keras"
@@ -20,11 +19,7 @@ from segmentation_models.losses import categorical_crossentropy
 # VARIABLES
 # --------------------------------------------------------------------
 
-# Get the absolute path of the directory containing app.py
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_API_URL = 'https://projet8frontend-ejangbejgzeuapcv.westeurope-01.azurewebsites.net'
-FRONTEND_IMAGES_DIR = os.path.join(FRONTEND_API_URL, 'static/images/source')
-
 
 # Path to the Keras model
 model_path = "./model/model.keras"
@@ -68,9 +63,8 @@ def generate_img_from_mask(mask, colors_palette=['b', 'g', 'r', 'c', 'm', 'y', '
 
 def predict_segmentation(image):
     # Load and resize the image
-
     image = image.resize((MODEL_INPUT_WIDTH, MODEL_INPUT_HEIGHT))
-    print('--- image resized')
+
     # Convert the image to a numpy array
     image_array = np.array(image)
 
@@ -83,10 +77,13 @@ def predict_segmentation(image):
     # Squeeze the first dimension of the mask.
     mask_predict = np.squeeze(mask_predict, axis=0)
 
-    # Finally, generate a color image (RGB image) from the mask array
+    # Generate a color image (RGB image) from the mask array
     mask_color = generate_img_from_mask(mask_predict) * 255
 
-    return mask_color
+    # Convert the mask_color array to an image
+    mask_image = Image.fromarray(mask_color.astype('uint8'))
+
+    return mask_image
 
 
 # --------------------------------------------------------------------
@@ -96,36 +93,27 @@ def predict_segmentation(image):
 app = Flask(__name__)
 @app.route('/predict', methods=['POST'])
 def predict():
-    print('--- request :', request)
-    data = request.get_json()
-    predicted_mask_filename = data.get('predicted_mask_filename')
-    image_name = data.get('image_name')
-    print('--- image_name :', image_name)
-    
-    # Create the path to the image
-    image_path = os.path.join(FRONTEND_IMAGES_DIR, image_name)
-
-    print('--- image path :', image_path)
-
-    # Download the image from the URL
-    response = requests.get(image_path)
-    image = Image.open(BytesIO(response.content))
+    print('----------------------------predict-backend---------------------------')
+    image_file = request.files['image']  # Récupération de l'image
     print('--- image OK')
+    predicted_mask_filename = request.form.get('predicted_mask_filename')
+    print('--- filename OK')
+
+    image = Image.open(image_file)
+    print('--- image opened')
 
     # Make prediction
     prediction = predict_segmentation(image)
+    print('--- prediction OK')
 
-    # Define the output path for the mask
-    output_path = os.path.join(BASE_DIR, 'pred', predicted_mask_filename)
-    
-    # Save the image
-    prediction.save(output_path)
-    print(f'--- Mask saved at {output_path}')
-    
-    # Return a response
-    return jsonify({
-        'message': 'Prediction completed successfully',
-    }), 200
+    # Save the prediction to a BytesIO object
+    img_io = BytesIO()
+    prediction.save(img_io, 'PNG')
+    img_io.seek(0)
+    print('--- image saved')
+
+    # Return the image as a response
+    return send_file(img_io, mimetype='image/png', as_attachment=True, download_name=predicted_mask_filename)
         
 
 if __name__ == '__main__':
