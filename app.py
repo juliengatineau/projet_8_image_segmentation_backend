@@ -1,9 +1,13 @@
 from flask import Flask, request, send_file
+import logging
 import os
 from PIL import Image
 import numpy as np
 from matplotlib import colors
 from io import BytesIO
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
 
 # Set the environment variable to use the TensorFlow 2.0 backend
 os.environ["SM_FRAMEWORK"] = "tf.keras"
@@ -18,8 +22,6 @@ from segmentation_models.losses import categorical_crossentropy
 # --------------------------------------------------------------------
 # VARIABLES
 # --------------------------------------------------------------------
-
-FRONTEND_API_URL = 'https://projet8frontend-ejangbejgzeuapcv.westeurope-01.azurewebsites.net'
 
 # Path to the Keras model
 model_path = "./model/model.keras"
@@ -93,24 +95,24 @@ def predict_segmentation(image):
 app = Flask(__name__)
 @app.route('/predict', methods=['POST'])
 def predict():
-    print('----------------------------predict-backend---------------------------')
+    logging.info('----------------------------predict-backend---------------------------')
     image_file = request.files['image']  # Récupération de l'image
-    print('--- image OK')
+    logging.info('--- image OK')
     predicted_mask_filename = request.form.get('predicted_mask_filename')
-    print('--- filename OK')
+    logging.info('--- filename OK')
 
     image = Image.open(image_file)
-    print('--- image opened')
+    logging.info('--- image opened')
 
     # Make prediction
     prediction = predict_segmentation(image)
-    print('--- prediction OK')
+    logging.info('--- prediction OK')
 
     # Save the prediction to a BytesIO object
     img_io = BytesIO()
     prediction.save(img_io, 'PNG')
     img_io.seek(0)
-    print('--- image saved')
+    logging.info('--- image saved')
 
     # Return the image as a response
     return send_file(img_io, mimetype='image/png', as_attachment=True, download_name=predicted_mask_filename)
