@@ -22,6 +22,7 @@ The model is trained to segment images into 8 classes:
 - Pillow
 - NumPy
 - Matplotlib
+- imgaug
 
 
 ## Installation
